@@ -709,11 +709,11 @@ bool subscribed = (slot->update_bl_handle && slot->update_led_handle && slot->ru
                    slot->subscribe_params.value_handle &&
                       slot->selected_physical_layout_handle);
 #if ZMK_KEYMAP_HAS_SENSORS
-subscribed = subscribed && slot->sensor_subscribe_params.value_handle;
+    subscribed = subscribed && slot->sensor_subscribe_params.value_handle;
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
-subscribed = subscribed && slot->update_hid_indicators;
+    subscribed = subscribed && slot->update_hid_indicators;
 #endif // IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
     subscribed = subscribed && slot->batt_lvl_subscribe_params.value_handle;
@@ -727,7 +727,7 @@ subscribed = subscribed && slot->update_hid_indicators;
     }
 #endif // IS_ENABLED(CONFIG_ZMK_INPUT_SPLIT)
 
-return subscribed ? BT_GATT_ITER_STOP : BT_GATT_ITER_CONTINUE;
+    return subscribed ? BT_GATT_ITER_STOP : BT_GATT_ITER_CONTINUE;
 }
 
 static uint8_t split_central_service_discovery_func(struct bt_conn *conn,
