@@ -110,7 +110,7 @@ config ZMK_KSCAN_DIRECT_POLLING
 
 config ZMK_KSCAN_DEBOUNCE_PRESS_MS
     int "Debounce time for key press in milliseconds."
-    default -1
+    default 15
     help
         Global debounce time for key press in milliseconds.
         If this is -1, the debounce time is controlled by the debounce-press-ms
@@ -119,7 +119,7 @@ config ZMK_KSCAN_DEBOUNCE_PRESS_MS
 
 config ZMK_KSCAN_DEBOUNCE_RELEASE_MS
     int "Debounce time for key release in milliseconds."
-    default -1
+    default 15
     help
         Global debounce time for key release in milliseconds.
         If this is -1, the debounce time is controlled by the debounce-release-ms
