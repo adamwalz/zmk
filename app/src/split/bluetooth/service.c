@@ -44,6 +44,8 @@ static void split_svc_sensor_state_ccc(const struct bt_gatt_attr *attr, uint16_t
     LOG_DBG("value %d", value);
 }
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
+#include <zmk/rgb_underglow.h>
+#include <zmk/backlight.h>
 
 #define POS_STATE_LEN 16
 
@@ -51,6 +53,14 @@ static uint8_t num_of_positions = ZMK_KEYMAP_LEN;
 static uint8_t position_state[POS_STATE_LEN];
 
 static struct zmk_split_run_behavior_payload behavior_run_payload;
+
+#if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)
+static struct zmk_split_update_led_data update_led_data;
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_BACKLIGHT)
+static struct zmk_split_update_bl_data update_bl_data;
+#endif
 
 static ssize_t split_svc_pos_state(struct bt_conn *conn, const struct bt_gatt_attr *attrs,
                                    void *buf, uint16_t len, uint16_t offset) {
@@ -102,6 +112,52 @@ static ssize_t split_svc_run_behavior(struct bt_conn *conn, const struct bt_gatt
 
     return len;
 }
+
+#if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)
+static ssize_t split_svc_update_led(struct bt_conn *conn, const struct bt_gatt_attr *attrs,
+                                    const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
+    struct zmk_split_update_led_data *payload = attrs->user_data;
+    uint16_t end_addr = offset + len;
+
+    LOG_DBG("offset %d len %d", offset, len);
+
+    memcpy(payload + offset, buf, len);
+
+    // We run if:
+    // 1: We've gotten all the position/state/param data.
+    // 2: We have a null terminated string for the behavior device label.
+    if ((end_addr == sizeof(struct zmk_split_update_led_data))) {
+        struct zmk_periph_led periph = {.layer = payload->layer, .indicators = payload->indicators};
+        zmk_rgb_underglow_set_periph(periph);
+        LOG_DBG("Update leds with params %d and %d", periph.layer, periph.indicators);
+    }
+
+    return len;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_BACKLIGHT)
+static ssize_t split_svc_update_bl(struct bt_conn *conn, const struct bt_gatt_attr *attrs,
+                                   const void *buf, uint16_t len, uint16_t offset, uint8_t flags) {
+    struct zmk_split_update_bl_data *payload = attrs->user_data;
+    uint16_t end_addr = offset + len;
+
+    LOG_DBG("offset %d len %d", offset, len);
+
+    memcpy(payload + offset, buf, len);
+
+    // We run if:
+    // 1: We've gotten all the position/state/param data.
+    // 2: We have a null terminated string for the behavior device label.
+    if ((end_addr == sizeof(struct zmk_split_update_bl_data))) {
+        struct backlight_state periph = {.brightness = payload->brightness, .on = payload->on};
+        zmk_backlight_update_vals(periph);
+        LOG_DBG("Update leds with params %d and %d", periph.on, periph.brightness);
+    }
+
+    return len;
+}
+#endif
 
 static ssize_t split_svc_num_of_positions(struct bt_conn *conn, const struct bt_gatt_attr *attrs,
                                           void *buf, uint16_t len, uint16_t offset) {
@@ -224,6 +280,19 @@ BT_GATT_SERVICE_DEFINE(
     BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_RUN_BEHAVIOR_UUID),
                            BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE_ENCRYPT, NULL,
                            split_svc_run_behavior, &behavior_run_payload),
+
+#if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)
+    BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_UPDATE_LED_UUID),
+                           BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE_ENCRYPT, NULL,
+                           split_svc_update_led, &update_led_data),
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_BACKLIGHT)
+    BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_UPDATE_BL_UUID),
+                           BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE_ENCRYPT, NULL,
+                           split_svc_update_bl, &update_bl_data),
+#endif
+
     BT_GATT_DESCRIPTOR(BT_UUID_NUM_OF_DIGITALS, BT_GATT_PERM_READ, split_svc_num_of_positions, NULL,
                        &num_of_positions),
 #if ZMK_KEYMAP_HAS_SENSORS
