@@ -133,8 +133,14 @@ static int ext_power_settings_commit() {
 
     if (!data->settings_init) {
 
-        data->status = true;
+        data->status = IS_ENABLED(CONFIG_ZMK_EXT_POWER_START);
         k_work_schedule(&ext_power_save_work, K_NO_WAIT);
+
+        if (data->status) {
+            ext_power_enable(dev);
+        } else {
+            ext_power_disable(dev);
+        }
 
         ext_power_enable(dev);
     }
