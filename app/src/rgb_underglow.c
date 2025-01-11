@@ -7,7 +7,6 @@
 #include <zephyr/device.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
-#include <zephyr/settings/settings.h>
 
 #include <math.h>
 #include <stdlib.h>
@@ -161,9 +160,9 @@ static struct led_rgb hsb_to_rgb(struct zmk_led_hsb hsb) {
 
 #define LED_RGB(hex)                                                                               \
     ((struct led_rgb){                                                                             \
-        r : LED_RGB_SCALING_MULTIPLE * (((hex)&0xFF0000) >> 16),                                   \
-        g : LED_RGB_SCALING_MULTIPLE * (((hex)&0x00FF00) >> 8),                                    \
-        b : LED_RGB_SCALING_MULTIPLE * (((hex)&0x0000FF) >> 0)                                     \
+        r : LED_RGB_SCALING_MULTIPLE * (((hex) & 0xFF0000) >> 16),                                 \
+        g : LED_RGB_SCALING_MULTIPLE * (((hex) & 0x00FF00) >> 8),                                  \
+        b : LED_RGB_SCALING_MULTIPLE * (((hex) & 0x0000FF) >> 0)                                   \
     })
 
 int zmk_rgb_underglow_set_periph(struct zmk_periph_led periph) {
@@ -453,48 +452,7 @@ static void zmk_rgb_underglow_tick_handler(struct k_timer *timer) {
 
 K_TIMER_DEFINE(underglow_tick, zmk_rgb_underglow_tick_handler, NULL);
 
-#if IS_ENABLED(CONFIG_SETTINGS)
-static int rgb_settings_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg) {
-    const char *next;
-    int rc;
-
-    if (settings_name_steq(name, "state", &next) && !next) {
-        if (len != sizeof(state)) {
-            return -EINVAL;
-        }
-
-        rc = read_cb(cb_arg, &state, sizeof(state));
-        if (rc >= 0) {
-            if (state.on) {
-                k_timer_start(&underglow_tick, K_NO_WAIT, K_MSEC(50));
-            }
-
-            return 0;
-        }
-
-        return rc;
-    }
-
-    return -ENOENT;
-}
-
-SETTINGS_STATIC_HANDLER_DEFINE(rgb_underglow, "rgb/underglow", NULL, rgb_settings_set, NULL, NULL);
-
-static void zmk_rgb_underglow_save_state_work(struct k_work *_work) {
-    settings_save_one("rgb/underglow/state", &state, sizeof(state));
-}
-
-static struct k_work_delayable underglow_save_work;
-#endif
-
-int zmk_rgb_underglow_save_state(void) {
-#if IS_ENABLED(CONFIG_SETTINGS)
-    int ret = k_work_reschedule(&underglow_save_work, K_MSEC(CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE));
-    return MIN(ret, 0);
-#else
-    return 0;
-#endif
-}
+int zmk_rgb_underglow_save_state(void) { return 0; }
 
 static int zmk_rgb_underglow_init(void) {
     led_strip = DEVICE_DT_GET(STRIP_CHOSEN);
@@ -504,11 +462,6 @@ static int zmk_rgb_underglow_init(void) {
         LOG_ERR("External power device \"%s\" is not ready", ext_power->name);
         return -ENODEV;
     }
-#endif
-
-#if IS_ENABLED(CONFIG_SETTINGS)
-
-    k_work_init_delayable(&underglow_save_work, zmk_rgb_underglow_save_state_work);
 #endif
 
     state = (struct rgb_underglow_state){
@@ -735,7 +688,7 @@ static int rgb_underglow_auto_state(bool target_wake_state) {
     } else {
         sleep_state.rgb_state_before_sleeping = state.on;
         return zmk_rgb_underglow_off();
-}
+    }
 }
 #endif
 static int rgb_underglow_event_listener(const zmk_event_t *eh) {
