@@ -621,6 +621,15 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
             LOG_DBG("Found select physical layout handle");
             slot->selected_physical_layout_handle = bt_gatt_attr_value_handle(attr);
             k_work_submit(&update_peripherals_selected_layouts_work);
+        } else if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
+                                BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_UPDATE_LED_UUID))) {
+            LOG_DBG("Found update led handle");
+            slot->update_led_handle = bt_gatt_attr_value_handle(attr);
+        } else if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
+                                BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_UPDATE_BL_UUID))) {
+            LOG_DBG("Found update bl handle");
+            slot->update_bl_handle = bt_gatt_attr_value_handle(attr);
+
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
         } else if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
                                 BT_UUID_DECLARE_128(ZMK_SPLIT_BT_UPDATE_HID_INDICATORS_UUID))) {
@@ -692,22 +701,9 @@ static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
         break;
     }
 
-
-
-else if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
-                      BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_UPDATE_LED_UUID))) {
-    LOG_DBG("Found update led handle");
-    slot->update_led_handle = bt_gatt_attr_value_handle(attr);
-}
-else if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
-                      BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_UPDATE_BL_UUID))) {
-    LOG_DBG("Found update bl handle");
-    slot->update_bl_handle = bt_gatt_attr_value_handle(attr);
-}
-
-bool subscribed = (slot->update_bl_handle && slot->update_led_handle && slot->run_behavior_handle &&
-                   slot->subscribe_params.value_handle &&
-                      slot->selected_physical_layout_handle);
+    bool subscribed =
+        (slot->update_bl_handle && slot->update_led_handle && slot->run_behavior_handle &&
+         slot->subscribe_params.value_handle && slot->selected_physical_layout_handle);
 #if ZMK_KEYMAP_HAS_SENSORS
     subscribed = subscribed && slot->sensor_subscribe_params.value_handle;
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
