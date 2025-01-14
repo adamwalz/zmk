@@ -21,6 +21,7 @@ struct zmk_led_hsb {
 struct zmk_periph_led {
     uint8_t layer;
     zmk_hid_indicators_t indicators;
+    bool on;
 };
 
 int zmk_rgb_underglow_toggle(void);

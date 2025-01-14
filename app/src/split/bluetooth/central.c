@@ -1227,8 +1227,8 @@ static int split_bt_update_led_payload(struct zmk_split_update_led_data payload)
 };
 
 int zmk_split_bt_update_led(struct zmk_periph_led *periph) {
-    struct zmk_split_update_led_data payload = {.layer = periph->layer,
-                                                .indicators = periph->indicators};
+    struct zmk_split_update_led_data payload = {
+        .layer = periph->layer, .indicators = periph->indicators, .on = periph->on};
 
     return split_bt_update_led_payload(payload);
 }

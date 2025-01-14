@@ -42,6 +42,7 @@ struct zmk_split_input_event_payload {
 struct zmk_split_update_led_data {
     uint8_t layer;
     uint8_t indicators;
+    bool on;
 } __packed;
 #endif
 

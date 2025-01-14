@@ -167,7 +167,12 @@ static struct led_rgb hsb_to_rgb(struct zmk_led_hsb hsb) {
 
 int zmk_rgb_underglow_set_periph(struct zmk_periph_led periph) {
     led_data = periph;
-    LOG_DBG("Update led_data %d %d", led_data.layer, led_data.indicators);
+    if (!state.on && led_data.on)
+        zmk_rgb_underglow_on();
+    else if (state.on && !led_data.on)
+        zmk_rgb_underglow_off();
+
+    LOG_DBG("Update led_data %d %d %d", led_data.layer, led_data.indicators, led_data.on);
     return 0;
 }
 
@@ -476,6 +481,7 @@ static int zmk_rgb_underglow_init(void) {
         on : IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_ON_START)
     };
     led_data.indicators = 0;
+    led_data.on = IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_ON_START);
 
 #if ZMK_BLE_IS_CENTRAL
     k_work_init_delayable(&led_update_work, zmk_rgb_underglow_central_send);
@@ -483,8 +489,10 @@ static int zmk_rgb_underglow_init(void) {
 
     k_work_submit_to_queue(zmk_workqueue_lowprio_work_q(), &underglow_tick_work);
     zmk_rgb_underglow_off();
-    if (IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_ON_START))
+    if (IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_ON_START)) {
+        ext_power_enable(ext_power);
         zmk_rgb_underglow_on();
+    }
     triggered = false;
     return 0;
 }
@@ -513,6 +521,11 @@ int zmk_rgb_underglow_on(void) {
     state.on = true;
     state.animation_step = 0;
     k_timer_start(&underglow_tick, K_NO_WAIT, K_MSEC(50));
+
+#if ZMK_BLE_IS_CENTRAL
+    led_data.on = true;
+    zmk_rgb_underglow_central_send();
+#endif
 
     return 0;
 }
@@ -544,7 +557,10 @@ int zmk_rgb_underglow_off(void) {
 
     k_timer_stop(&underglow_tick);
     state.on = false;
-
+#if ZMK_BLE_IS_CENTRAL
+    led_data.on = false;
+    zmk_rgb_underglow_central_send();
+#endif
     return 0;
 }
 
@@ -703,6 +719,7 @@ static int rgb_underglow_event_listener(const zmk_event_t *eh) {
     if (as_zmk_usb_conn_state_changed(eh)) {
         led_data.indicators = zmk_hid_indicators_get_current_profile();
         led_data.layer = zmk_keymap_highest_layer_active();
+        led_data.on = state.on;
         int err = zmk_split_bt_update_led(&led_data);
         if (err) {
             LOG_ERR("send failed (err %d)", err);
