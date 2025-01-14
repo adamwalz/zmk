@@ -11,7 +11,6 @@
 #include <zephyr/pm/device.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
-#include <zephyr/settings/settings.h>
 #include <zephyr/drivers/gpio.h>
 
 #include <drivers/ext_power.h>
@@ -29,32 +28,9 @@ struct ext_power_generic_config {
 
 struct ext_power_generic_data {
     bool status;
-#if IS_ENABLED(CONFIG_SETTINGS)
-    bool settings_init;
-#endif
 };
 
-#if IS_ENABLED(CONFIG_SETTINGS)
-static void ext_power_save_state_work(struct k_work *work) {
-    char setting_path[40];
-    const struct device *ext_power = DEVICE_DT_GET(DT_DRV_INST(0));
-    struct ext_power_generic_data *data = ext_power->data;
-
-    snprintf(setting_path, sizeof(setting_path), "ext_power/state/%s", ext_power->name);
-    settings_save_one(setting_path, &data->status, sizeof(data->status));
-}
-
-static struct k_work_delayable ext_power_save_work;
-#endif
-
-int ext_power_save_state(void) {
-#if IS_ENABLED(CONFIG_SETTINGS)
-    int ret = k_work_reschedule(&ext_power_save_work, K_MSEC(CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE));
-    return MIN(ret, 0);
-#else
-    return 0;
-#endif
-}
+int ext_power_save_state(void) { return 0; }
 
 static int ext_power_generic_enable(const struct device *dev) {
     struct ext_power_generic_data *data = dev->data;
@@ -91,62 +67,6 @@ static int ext_power_generic_get(const struct device *dev) {
     return data->status;
 }
 
-#if IS_ENABLED(CONFIG_SETTINGS)
-static int ext_power_settings_set_status(const struct device *dev, size_t len,
-                                         settings_read_cb read_cb, void *cb_arg) {
-    struct ext_power_generic_data *data = dev->data;
-
-    if (len != sizeof(data->status)) {
-        return -EINVAL;
-    }
-
-    int rc = read_cb(cb_arg, &data->status, sizeof(data->status));
-    if (rc >= 0) {
-        data->settings_init = true;
-
-        if (data->status) {
-            ext_power_generic_enable(dev);
-        } else {
-            ext_power_generic_disable(dev);
-        }
-
-        return 0;
-    }
-    return rc;
-}
-
-static int ext_power_settings_set(const char *name, size_t len, settings_read_cb read_cb,
-                                  void *cb_arg) {
-    const struct device *ext_power = DEVICE_DT_GET(DT_DRV_INST(0));
-
-    const char *next;
-    if (settings_name_steq(name, ext_power->name, &next) && !next) {
-        return ext_power_settings_set_status(ext_power, len, read_cb, cb_arg);
-    }
-
-    return -ENOENT;
-}
-
-static int ext_power_settings_commit() {
-    const struct device *dev = DEVICE_DT_GET(DT_DRV_INST(0));
-    struct ext_power_generic_data *data = dev->data;
-
-    if (!data->settings_init) {
-
-        data->status = true;
-        k_work_schedule(&ext_power_save_work, K_NO_WAIT);
-
-        ext_power_enable(dev);
-    }
-
-    return 0;
-}
-
-SETTINGS_STATIC_HANDLER_DEFINE(ext_power, "ext_power/state", NULL, ext_power_settings_set,
-                               ext_power_settings_commit, NULL);
-
-#endif
-
 static int ext_power_generic_init(const struct device *dev) {
     const struct ext_power_generic_config *config = dev->config;
 
@@ -157,10 +77,6 @@ static int ext_power_generic_init(const struct device *dev) {
             return -EIO;
         }
     }
-
-#if IS_ENABLED(CONFIG_SETTINGS)
-    k_work_init_delayable(&ext_power_save_work, ext_power_save_state_work);
-#endif
 
     // Enable by default. We may get disabled again once settings load.
     ext_power_enable(dev);
@@ -197,9 +113,6 @@ static const struct ext_power_generic_config config = {
 
 static struct ext_power_generic_data data = {
     .status = false,
-#if IS_ENABLED(CONFIG_SETTINGS)
-    .settings_init = false,
-#endif
 };
 
 static const struct ext_power_api api = {.enable = ext_power_generic_enable,
