@@ -119,8 +119,36 @@ static const struct behavior_parameter_metadata_set hsv_value_metadata_set = {
 
 */
 
+static const struct behavior_parameter_value_metadata effect_p1_value_metadata_values[] = {
+    {
+        .display_name = "Set effect",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = RGB_EFS_CMD,
+    },
+    {
+        .display_name = "Set Momentary Effect",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = RGB_MEFS_CMD,
+    },
+};
+
+static const struct behavior_parameter_value_metadata effect_p2_value_metadata_values[] = {
+    {
+        .display_name = "Effect",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_RANGE,
+        .range = {.min = 0, .max = 6},
+    },
+};
+
+static const struct behavior_parameter_metadata_set effect_value_metadata_set = {
+    .param1_values = effect_p1_value_metadata_values,
+    .param1_values_len = ARRAY_SIZE(effect_p1_value_metadata_values),
+    .param2_values = effect_p2_value_metadata_values,
+    .param2_values_len = ARRAY_SIZE(effect_p2_value_metadata_values),
+};
+
 static const struct behavior_parameter_metadata_set sets[] = {
-    no_args_set,
+    no_args_set, effect_value_metadata_set,
     // hsv_value_metadata_set,
 };
 

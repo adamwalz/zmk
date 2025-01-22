@@ -172,6 +172,7 @@ int zmk_rgb_underglow_set_periph(struct zmk_periph_led periph) {
     else if (state.on && !led_data.on)
         zmk_rgb_underglow_off();
 
+    state.current_effect = led_data.effect;
     LOG_DBG("Update led_data %d %d %d", led_data.layer, led_data.indicators, led_data.on);
     return 0;
 }
@@ -482,6 +483,7 @@ static int zmk_rgb_underglow_init(void) {
     };
     led_data.indicators = 0;
     led_data.on = IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_ON_START);
+    led_data.effect = state.current_effect;
 
 #if ZMK_BLE_IS_CENTRAL
     k_work_init_delayable(&led_update_work, zmk_rgb_underglow_central_send);
@@ -578,6 +580,12 @@ int zmk_rgb_underglow_select_effect(int effect) {
 
     state.current_effect = effect;
     state.animation_step = 0;
+
+#if ZMK_BLE_IS_CENTRAL
+    led_data.effect = effect;
+
+    zmk_rgb_underglow_central_send();
+#endif
 
     return 0;
 }
