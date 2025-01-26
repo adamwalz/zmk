@@ -14,7 +14,6 @@
         mkp: mouse_key_press {
             compatible = "zmk,behavior-mouse-key-press";
             #binding-cells = <1>;
-            display-name = "Mouse Key Press";
         };
     };
 
