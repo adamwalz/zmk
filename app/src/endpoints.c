@@ -31,6 +31,7 @@ static enum zmk_transport preferred_transport =
     ZMK_TRANSPORT_USB; /* Used if multiple endpoints are ready */
 
 static void update_current_endpoint(void);
+static enum zmk_transport get_selected_transport(void);
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static void endpoints_save_preferred_work(struct k_work *work) {
@@ -117,6 +118,10 @@ int zmk_endpoints_toggle_transport(void) {
 }
 
 struct zmk_endpoint_instance zmk_endpoints_selected(void) { return current_instance; }
+
+bool zmk_endpoints_preferred_transport_is_active(void) {
+    return preferred_transport == get_selected_transport();
+}
 
 static int send_keyboard_report(void) {
     switch (current_instance.transport) {
