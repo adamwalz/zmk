@@ -422,6 +422,8 @@ static void zmk_rgb_underglow_effect_battery() {
 }
 
 static void zmk_rgb_underglow_tick(struct k_work *work) {
+    uint8_t bat_level = zmk_battery_state_of_charge();
+    
     switch (state.current_effect) {
     case UNDERGLOW_EFFECT_SOLID:
         zmk_rgb_underglow_effect_solid();
@@ -444,6 +446,19 @@ static void zmk_rgb_underglow_tick(struct k_work *work) {
     case UNDERGLOW_EFFECT_TEST:
         zmk_rgb_underglow_effect_test();
         break;
+    }
+
+    // If battery is below 10%, turn off all LEDs
+    if (bat_level < 10) {
+        memset(pixels, 0, sizeof(struct led_rgb) * STRIP_NUM_PIXELS);
+    }
+    // If battery is below 20%, reduce brightness by half
+    else if (bat_level < 20) {
+        for (int i = 0; i < STRIP_NUM_PIXELS; i++) {
+            pixels[i].r = pixels[i].r >> 1;
+            pixels[i].g = pixels[i].g >> 1;
+            pixels[i].b = pixels[i].b >> 1;
+        }
     }
 
     int err = led_strip_update_rgb(led_strip, pixels, STRIP_NUM_PIXELS);
@@ -528,7 +543,7 @@ int zmk_rgb_underglow_on(void) {
 
     state.on = true;
     state.animation_step = 0;
-    k_timer_start(&underglow_tick, K_NO_WAIT, K_MSEC(50));
+    k_timer_start(&underglow_tick, K_NO_WAIT, K_MSEC(25));
 
 #if ZMK_BLE_IS_CENTRAL
     led_data.on = true;
