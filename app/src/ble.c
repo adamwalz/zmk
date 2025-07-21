@@ -47,6 +47,10 @@ RING_BUF_DECLARE(passkey_entries, PASSKEY_DIGITS);
 
 #endif /* IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY) */
 
+#if IS_ENABLED(CONFIG_ZMK_BLE_DEVICE_NAME_APPEND_SN) && IS_ENABLED(CONFIG_HWINFO)
+#include <zephyr/drivers/hwinfo.h>
+#endif
+
 enum advertising_type {
     ZMK_ADV_NONE,
     ZMK_ADV_DIR,
@@ -63,8 +67,49 @@ enum advertising_type {
 static struct zmk_ble_profile profiles[ZMK_BLE_PROFILE_COUNT];
 static uint8_t active_profile;
 
+#if IS_ENABLED(CONFIG_ZMK_BLE_DEVICE_NAME_APPEND_SN) && IS_ENABLED(CONFIG_HWINFO)
+
+static char bt_device_name[sizeof(CONFIG_BT_DEVICE_NAME) + CONFIG_ZMK_BLE_DEVICE_NAME_SN_CHARS + 2];
+
+// Fill buffer with hexadecimal representation of device serial number
+static void fill_serial_number(char *buf, int length) {
+    uint8_t hwid[16];
+    memset(hwid, 0, sizeof(hwid));
+    ssize_t hwlen = hwinfo_get_device_id(hwid, sizeof(hwid));
+    
+    if (hwlen > 0) {
+        // Convert to hex string
+        int chars_to_encode = MIN(hwlen, (length - 1) / 2);
+        for (int i = 0; i < chars_to_encode; i++) {
+            snprintf(&buf[i * 2], 3, "%02X", hwid[i]);
+        }
+        buf[chars_to_encode * 2] = '\0';
+    } else {
+        buf[0] = '\0';
+    }
+}
+
+// Configure the BT device name by appending a serial number suffix to CONFIG_BT_DEVICE_NAME
+static void init_bt_device_name(void) {
+    strncpy(bt_device_name, CONFIG_BT_DEVICE_NAME, sizeof(bt_device_name));
+    strncat(bt_device_name, " ", sizeof(bt_device_name) - strlen(bt_device_name) - 1);
+    
+    char serial[CONFIG_ZMK_BLE_DEVICE_NAME_SN_CHARS + 1];
+    fill_serial_number(serial, sizeof(serial));
+    strncat(bt_device_name, serial, sizeof(bt_device_name) - strlen(bt_device_name) - 1);
+    
+    bt_device_name[sizeof(bt_device_name) - 1] = '\0';
+}
+
+#define DEVICE_NAME bt_device_name
+#define DEVICE_NAME_LEN (strlen(bt_device_name))
+
+#else
+
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
+
+#endif
 
 BUILD_ASSERT(
     DEVICE_NAME_LEN <= CONFIG_BT_DEVICE_NAME_MAX,
@@ -355,6 +400,23 @@ struct bt_conn *zmk_ble_active_profile_conn(void) {
 }
 
 char *zmk_ble_active_profile_name(void) { return profiles[active_profile].name; }
+
+int8_t zmk_ble_profile_status(uint8_t index) {
+    if (index >= ZMK_BLE_PROFILE_COUNT)
+        return -1;
+    bt_addr_le_t *addr = &profiles[index].peer;
+    struct bt_conn *conn;
+    int result;
+    if (!bt_addr_le_cmp(addr, BT_ADDR_LE_ANY)) {
+        result = 0; // disconnected
+    } else if ((conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT, addr)) == NULL) {
+        result = 1; // paired
+    } else {
+        result = 2; // connected
+        bt_conn_unref(conn);
+    }
+    return result;
+}
 
 int zmk_ble_set_device_name(char *name) {
     // Copy new name to advertising parameters
@@ -731,12 +793,22 @@ static int zmk_ble_complete_startup(void) {
 }
 
 static int zmk_ble_init(void) {
+#if IS_ENABLED(CONFIG_ZMK_BLE_DEVICE_NAME_APPEND_SN) && IS_ENABLED(CONFIG_HWINFO)
+    init_bt_device_name();
+#endif
+
     int err = bt_enable(NULL);
 
     if (err < 0 && err != -EALREADY) {
         LOG_ERR("BLUETOOTH FAILED (%d)", err);
         return err;
     }
+
+#if IS_ENABLED(CONFIG_ZMK_BLE_DEVICE_NAME_APPEND_SN) && IS_ENABLED(CONFIG_HWINFO)
+    if (strcmp(bt_get_name(), bt_device_name) != 0) {
+        bt_set_name(bt_device_name);
+    }
+#endif
 
 #if IS_ENABLED(CONFIG_SETTINGS)
     settings_register(&profiles_handler);
