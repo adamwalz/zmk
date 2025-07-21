@@ -320,12 +320,12 @@ int send_position_state() {
     return 0;
 }
 
-static int zmk_split_bt_position_pressed(uint8_t position) {
+int zmk_split_bt_position_pressed(uint8_t position) {
     WRITE_BIT(position_state[position / 8], position % 8, true);
     return send_position_state();
 }
 
-static int zmk_split_bt_position_released(uint8_t position) {
+int zmk_split_bt_position_released(uint8_t position) {
     WRITE_BIT(position_state[position / 8], position % 8, false);
     return send_position_state();
 }
@@ -367,7 +367,7 @@ int send_sensor_state(struct sensor_event ev) {
     return 0;
 }
 
-static int zmk_split_bt_sensor_triggered(uint8_t sensor_index,
+int zmk_split_bt_sensor_triggered(uint8_t sensor_index,
                                          const struct zmk_sensor_channel_data channel_data[],
                                          size_t channel_data_size) {
     if (channel_data_size > ZMK_SENSOR_EVENT_MAX_CHANNELS) {
@@ -384,7 +384,7 @@ static int zmk_split_bt_sensor_triggered(uint8_t sensor_index,
 
 #if IS_ENABLED(CONFIG_ZMK_INPUT_SPLIT)
 
-static int zmk_split_bt_report_input(uint8_t reg, uint8_t type, uint16_t code, int32_t value,
+int zmk_split_bt_report_input(uint8_t reg, uint8_t type, uint16_t code, int32_t value,
                                      bool sync) {
 
     for (size_t i = 0; i < split_svc.attr_count; i++) {
