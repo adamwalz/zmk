@@ -962,8 +962,8 @@ static void split_central_connected(struct bt_conn *conn, uint8_t conn_err) {
     confirm_peripheral_slot_conn(conn);
     split_central_process_connection(conn);
     k_work_submit(&notify_status_work);
-    ZMK_EVENT_RAISE(new_zmk_split_peripheral_status_changed(
-        (struct zmk_split_peripheral_status_changed){.connected = true}));
+    raise_zmk_split_peripheral_status_changed(
+        (struct zmk_split_peripheral_status_changed){.connected = true});
 }
 
 static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
@@ -995,7 +995,7 @@ static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
 #endif
 
     raise_zmk_split_peripheral_status_changed(
-        (struct zmk_split_peripheral_status_changed){.connected = false}));
+        (struct zmk_split_peripheral_status_changed){.connected = false});
     err = release_peripheral_slot_for_conn(conn);
 
     if (err < 0) {
