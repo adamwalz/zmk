@@ -436,6 +436,14 @@ endif # ZMK_SLEEP
 config ZMK_EXT_POWER
     bool "Enable support to control external power output"
 
+if ZMK_EXT_POWER
+
+config ZMK_EXT_POWER_START
+    bool "Enable external power output by default"
+    default y
+
+endif #ZMK_EXT_POWER
+
 config ZMK_PM
     bool
 

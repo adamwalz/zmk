@@ -78,8 +78,12 @@ static int ext_power_generic_init(const struct device *dev) {
         }
     }
 
-    // Enable by default. We may get disabled again once settings load.
-    ext_power_enable(dev);
+    // Set to default state. This may change again once settings load.
+    if (IS_ENABLED(CONFIG_ZMK_EXT_POWER_START)) {
+        ext_power_enable(dev);
+    } else {
+        ext_power_disable(dev);
+    }
 
     if (config->init_delay_ms) {
         k_msleep(config->init_delay_ms);
